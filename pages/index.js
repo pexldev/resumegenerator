@@ -1,6 +1,6 @@
 import dynamic from 'next/dynamic';
 
-const ResumeGenerator = dynamic(() => import('@/Resumegenerator'), {
+const ResumeGenerator = dynamic(() => import('../Resumegenerator'), {
   ssr: false
 });
 
