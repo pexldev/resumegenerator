@@ -73,6 +73,14 @@ const ResumeGenerator = () => {
 
     if (!response.ok) {
       const errorData = await response.json();
+      
+      // Handle rate limiting
+      if (response.status === 429) {
+        alert('⏳ Too many requests! Please wait a minute before enhancing again.');
+        setLoadingStates(prev => ({ ...prev, [key]: false }));
+        return;
+      }
+      
       throw new Error(errorData.error || 'Failed to enhance content');
     }
 
