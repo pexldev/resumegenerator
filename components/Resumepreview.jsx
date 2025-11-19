@@ -157,19 +157,28 @@ const ResumePreview = ({ data }) => {
         marginRight: '16px'
       }}>
         {/* Profile Photo */}
-        {data.photo && (
-          <div style={{
-            width: '80px',
-            height: '80px',
-            borderRadius: '50%',
-            margin: '0 auto 14px',
-            overflow: 'hidden',
-            border: '3px solid #4A90E2',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-          }}>
+        <div style={{
+          width: '80px',
+          height: '80px',
+          borderRadius: '50%',
+          margin: '0 auto 14px',
+          overflow: 'hidden',
+          border: '3px solid #4A90E2',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          backgroundColor: '#1e293b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          {data.photo ? (
             <img src={data.photo} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-        )}
+          ) : (
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="8" r="4" fill="#6B7280" />
+              <path d="M4 20C4 16.6863 6.68629 14 10 14H14C17.3137 14 20 16.6863 20 20V20" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          )}
+        </div>
 
         {/* Contact */}
         {(data.phone || data.email || data.linkedin || data.website) && (
