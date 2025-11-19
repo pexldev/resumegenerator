@@ -4,9 +4,69 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Rate limiting store (in-memory)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS = 10; // 10 requests per minute per IP
+
+function getRateLimitKey(req) {
+  // Get IP from various headers (Vercel, Cloudflare, etc.)
+  return req.headers['x-forwarded-for']?.split(',')[0] || 
+         req.headers['x-real-ip'] || 
+         req.socket.remoteAddress || 
+         'unknown';
+}
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const userRequests = rateLimitMap.get(ip) || [];
+  
+  // Filter out old requests outside the time window
+  const recentRequests = userRequests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
+  
+  if (recentRequests.length >= MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  // Add current request
+  recentRequests.push(now);
+  rateLimitMap.set(ip, recentRequests);
+  
+  return { allowed: true, remaining: MAX_REQUESTS - recentRequests.length };
+}
+
+// Cleanup old entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, requests] of rateLimitMap.entries()) {
+    const recentRequests = requests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
+    if (recentRequests.length === 0) {
+      rateLimitMap.delete(ip);
+    } else {
+      rateLimitMap.set(ip, recentRequests);
+    }
+  }
+}, 5 * 60 * 1000);
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Rate limiting check
+  const ip = getRateLimitKey(req);
+  const { allowed, remaining } = checkRateLimit(ip);
+  
+  // Set rate limit headers
+  res.setHeader('X-RateLimit-Limit', MAX_REQUESTS.toString());
+  res.setHeader('X-RateLimit-Remaining', remaining.toString());
+  res.setHeader('X-RateLimit-Reset', new Date(Date.now() + RATE_LIMIT_WINDOW).toISOString());
+  
+  if (!allowed) {
+    return res.status(429).json({ 
+      error: 'Too many requests. Please wait a minute before trying again.',
+      retryAfter: Math.ceil(RATE_LIMIT_WINDOW / 1000)
+    });
   }
 
   const { text, field } = req.body;
@@ -69,7 +129,7 @@ You are enhancing a language proficiency section for a professional resume.
 Rewrite the following language details so that:
 - You keep all mentioned languages and proficiency levels (do NOT add or remove languages).
 - You map vague levels (good, basic, fluent) into standard terms where appropriate (e.g., Native, Professional, Conversational, Basic).
-- You keep the format clean and compact (e.g., "English â€“ Native, Hindi â€“ Professional Working Proficiency").
+- You keep the format clean and compact (e.g., "English Ã¢â‚¬â€œ Native, Hindi Ã¢â‚¬â€œ Professional Working Proficiency").
 - You improve clarity and professionalism, but do NOT invent new languages or proficiency.
 - You return ONLY the enhanced language line(s), no explanations.
 
@@ -85,7 +145,7 @@ Rewrite the following skills so that:
 - You group related skills logically where useful (e.g., "Salesforce (Sales Cloud, Service Cloud, Flow)", "Frontend: React, Next.js").
 - You remove duplicates, filler words, and overly generic terms where possible.
 - You make it ATS-friendly by using common industry skill names and commas or pipes for separation.
-- You keep it concise and scannable (1â€“3 lines max).
+- You keep it concise and scannable (1Ã¢â‚¬â€œ3 lines max).
 - You return ONLY the enhanced skills text, no bullet labels like "Skills:" unless present in the original.
 
 Original skills text:
@@ -98,7 +158,7 @@ You are enhancing a certifications section for a professional resume.
 Rewrite the following certifications so that:
 - You keep all real details (certification name, issuing body, dates, credential IDs, links) exactly as given.
 - You do NOT invent new certifications, dates, or issuing bodies.
-- You normalize the format (e.g., "Salesforce Certified Administrator â€“ Salesforce, 2023").
+- You normalize the format (e.g., "Salesforce Certified Administrator Ã¢â‚¬â€œ Salesforce, 2023").
 - You keep each certification on its own line if there are multiple.
 - You improve readability and professionalism while preserving facts.
 - You return ONLY the enhanced certification line(s), no extra commentary.
