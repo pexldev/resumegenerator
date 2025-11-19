@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import html2pdf from 'html2pdf.js';
 import { theme } from '@/styles/theme';
 import ResumeEditor from './ResumeEditor';
-import ResumePreview from './ResumePreview';
+import ResumePreview from './Resumepreview';
 
 const ResumeGenerator = () => {
   const [formData, setFormData] = useState({
